@@ -30,7 +30,7 @@ const Content = ({ items, handleCheck, handleDelete }) => {
   //   };
 
   return (
-    <main>
+    <>
       {items.length ? (
         <ItemList
           items={items}
@@ -40,7 +40,7 @@ const Content = ({ items, handleCheck, handleDelete }) => {
       ) : (
         <p style={{ marginTop: "2rem" }}>Empty List</p>
       )}
-    </main>
+    </>
     // <main>
     //   <p onDoubleClick={handleClick}>Hello {name} !</p>
     //   <br />

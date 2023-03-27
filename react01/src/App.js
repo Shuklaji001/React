@@ -1,42 +1,100 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AddItem from "./AddItem";
 import Content from "./Content";
 import Footer from "./Footer";
 import Header from "./Header";
 import SearchItem from "./SearchItem";
+import apiRequest from "./apiRequest";
 
 function App() {
-  const [items, setItems] = useState(
-    JSON.parse(localStorage.getItem("shoppingList"))
-  );
+  const API_URL = "http://localhost:3500/items";
 
+  // const [items, setItems] = useState(JSON.parse(localStorage.getItem("shoppingList") || []));
+  const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState("");
   const [search, setSearch] = useState("");
+  const [fetchError, setFetchError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const setAndSaveItems = (newItems) => {
-    setItems(newItems);
-    localStorage.setItem("shoppingList", JSON.stringify(newItems));
-  };
+  useEffect(
+    () => {
+      // localStorage.setItem("shoppingList", JSON.stringify(items));
+      const fetchItems = async () => {
+        try {
+          const response = await fetch(API_URL);
+          if (!response.ok) throw Error("Did not receive expected data");
 
-  const addItems = (item) => {
+          const listItems = await response.json();
+          console.log(listItems);
+          setItems(listItems);
+          setFetchError(null);
+        } catch (err) {
+          setFetchError(err.message);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      setTimeout(() => {
+        (async () => await fetchItems())();
+      }, 2000);
+    },
+    /*[items]*/ []
+  );
+
+  // const setAndSaveItems = (newItems) => {
+  //   setItems(newItems);
+  //   localStorage.setItem("shoppingList", JSON.stringify(newItems));
+  // };
+
+  const addItems = async (item) => {
     const id = items.length ? items[items.length - 1].id + 1 : 1;
     const myNewItem = { id, checked: false, item };
     const listItems = [...items, myNewItem];
-    setAndSaveItems(listItems);
+    setItems(listItems);
+
+    const postOptions = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(myNewItem),
+    };
+    const result = await apiRequest(API_URL, postOptions);
+    if (result) setFetchError(result);
   };
 
-  const handleCheck = (id) => {
+  const handleCheck = async (id) => {
     console.log(`key: ${id}`);
     const listItems = items.map((item) =>
       item.id === id ? { ...item, checked: !item.checked } : item
     );
-    setAndSaveItems(listItems);
+    setItems(listItems);
+
+    const myItem = listItems.filter((item) => item.id === id);
+    const updateOptions = {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ checked: myItem[0].checked }),
+    };
+    const reqUrl = `${API_URL}/${id}`;
+    const result = await apiRequest(reqUrl, updateOptions);
+    if (result) setFetchError(result);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     console.log(id);
     const listItems = items.filter((item) => item.id !== id);
-    setAndSaveItems(listItems);
+    setItems(listItems);
+
+    const deleteOptions = {
+      method: "DELETE",
+    };
+    const reqUrl = `${API_URL}/${id}`;
+    const result = await apiRequest(reqUrl, deleteOptions);
+    if (result) setFetchError(result);
   };
 
   const handleSubmit = (e) => {
@@ -56,13 +114,19 @@ function App() {
         handleSubmit={handleSubmit}
       />
       <SearchItem search={search} setSearch={setSearch} />
-      <Content
-        items={items.filter((item) =>
-          item.item.toLowerCase().includes(search.toLowerCase())
+      <main>
+        {isLoading && <p>Loading Items...</p>}
+        {fetchError && <p style={{ color: "red" }}>{`Error ${fetchError}`}</p>}
+        {!fetchError && !isLoading && (
+          <Content
+            items={items.filter((item) =>
+              item.item.toLowerCase().includes(search.toLowerCase())
+            )}
+            handleCheck={handleCheck}
+            handleDelete={handleDelete}
+          />
         )}
-        handleCheck={handleCheck}
-        handleDelete={handleDelete}
-      />
+      </main>
       <Footer length={items.length} />
     </div>
   );
